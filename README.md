@@ -2,7 +2,7 @@
 
 A dependency-free static web app for choosing a Splitgate Quick Play gamemode and compatible map.
 
-Use **Configure game modes and maps** in the page to build the rotation in three steps: add gamemodes, create named map lists, and link each gamemode to the list it can use. Each text area accepts one value per line and is saved in that browser. A selected gamemode or map cannot appear again until at least 50% of its alternatives have appeared.
+Use **Configure game modes and maps** in the page to build the rotation in three steps: add gamemodes, create named map lists, and link each gamemode to every compatible map list. Each text area accepts one value per line and is saved in that browser. A selected gamemode or map cannot appear again until at least 50% of its alternatives have appeared.
 
 ## Run locally
 
