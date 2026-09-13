@@ -14,11 +14,16 @@ button:hover, button:focus-visible { background: #ffd778; outline: 3px solid #ff
 .status { min-height: 1.5rem; color: #b9b7d6; }
 .settings { margin-top: 2.5rem; text-align: left; }
 .settings summary { cursor: pointer; color: #d7d8e8; font-weight: 700; }
-.settings form { display: grid; gap: .55rem; margin-top: 1rem; }
+.settings-content { display: grid; gap: 1.5rem; margin-top: 1rem; }
 .settings-note { margin: 0 0 .5rem; color: #b9b7d6; font-size: .9rem; }
+.config-section { display: grid; gap: .55rem; padding: 1.2rem; border: 1px solid #4f4a72; border-radius: .75rem; background: rgb(15 18 43 / .35); }
+.config-section h2 { margin: 0 0 .2rem; font-size: 1rem; }
 .settings label { font-weight: 700; }
-textarea, input { width: 100%; padding: .7rem; border: 1px solid #69618e; border-radius: .5rem; color: inherit; background: #171a37; font: inherit; }
+textarea, input, select { width: 100%; padding: .7rem; border: 1px solid #69618e; border-radius: .5rem; color: inherit; background: #171a37; font: inherit; }
 .settings-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .5rem; }
 button.secondary { color: #f5f7ff; background: #484367; }
 button.secondary:hover, button.secondary:focus-visible { background: #625c89; }
+.config-list { display: grid; gap: .5rem; margin: .5rem 0 0; padding: 0; list-style: none; }
+.config-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem; border-radius: .45rem; background: #222546; }
+.config-list button { padding: .35rem .65rem; font-size: .8rem; }
 @media (max-width: 480px) { .app-shell { padding: 2rem 1rem; } .result { grid-template-columns: 1fr; } }

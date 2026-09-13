@@ -1,59 +1,96 @@
 const DEFAULT_SETTINGS = {
-  arenaGamemodes: [
+  gamemodes: [
     'Big Head Snipers', 'Domination', 'FFA OITC', 'Gun Game',
-    'King of the Hill', 'Team Deathmatch', 'Swat',
+    'King of the Hill', 'Team Deathmatch', 'Swat', 'Takedown',
   ],
-  takedownGamemode: 'Takedown',
-  arenaMaps: [
-    'Abyss', 'Academy', 'Bypass', 'Containment', 'Core', 'Eden',
-    'Foregone Destruction', 'Frontier', 'Grit', 'Hammerhead',
-    'Karman Station', 'Oasis', 'Ozone', 'Runway', 'Stadium V2',
-    'Terra 13', 'Trihard', 'Zenith',
-  ],
-  simulationMaps: [
-    'Simulation Anomaly', 'Simulation Charlie', 'Simulation Divide',
-    'Simulation Faceoff', 'Simulation Hectic', 'Simulation Moshpit',
-  ],
+  mapLists: {
+    'Arena maps': [
+      'Abyss', 'Academy', 'Bypass', 'Containment', 'Core', 'Eden',
+      'Foregone Destruction', 'Frontier', 'Grit', 'Hammerhead',
+      'Karman Station', 'Oasis', 'Ozone', 'Runway', 'Stadium V2',
+      'Terra 13', 'Trihard', 'Zenith',
+    ],
+    'Simulation maps': [
+      'Simulation Anomaly', 'Simulation Charlie', 'Simulation Divide',
+      'Simulation Faceoff', 'Simulation Hectic', 'Simulation Moshpit',
+    ],
+  },
+  assignments: {
+    'Big Head Snipers': 'Arena maps', Domination: 'Arena maps',
+    'FFA OITC': 'Arena maps', 'Gun Game': 'Arena maps',
+    'King of the Hill': 'Arena maps', 'Team Deathmatch': 'Arena maps',
+    Swat: 'Arena maps', Takedown: 'Simulation maps',
+  },
 };
 
-const STORAGE_KEY = 'spingate-settings';
-const form = document.querySelector('#settings-form');
-const spinButton = document.querySelector('#spin');
+const STORAGE_KEY = 'spingate-settings-v2';
 const gamemodeOutput = document.querySelector('#gamemode');
 const mapOutput = document.querySelector('#map');
 const statusOutput = document.querySelector('#status');
+const gamemodesInput = document.querySelector('#gamemodes');
+const mapListNameInput = document.querySelector('#map-list-name');
+const mapListMapsInput = document.querySelector('#map-list-maps');
+const assignmentGamemode = document.querySelector('#assignment-gamemode');
+const assignmentMapList = document.querySelector('#assignment-map-list');
+const mapListSummary = document.querySelector('#map-list-summary');
+const assignmentSummary = document.querySelector('#assignment-summary');
 
 let settings = loadSettings();
 let gamemodeHistory = [];
-let arenaMapHistory = [];
-let simulationMapHistory = [];
+let mapHistories = {};
 
 function cloneDefaults() {
   return structuredClone(DEFAULT_SETTINGS);
 }
 
-function loadSettings() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return isValidSettings(stored) ? stored : cloneDefaults();
-  } catch {
-    return cloneDefaults();
-  }
+function textToList(value) {
+  return [...new Set(value.split('\n').map((item) => item.trim()).filter(Boolean))];
 }
 
 function isValidSettings(value) {
   return value
-    && Array.isArray(value.arenaGamemodes) && value.arenaGamemodes.length > 0
-    && typeof value.takedownGamemode === 'string' && value.takedownGamemode.trim()
-    && Array.isArray(value.arenaMaps) && value.arenaMaps.length > 0
-    && Array.isArray(value.simulationMaps) && value.simulationMaps.length > 0;
+    && Array.isArray(value.gamemodes) && value.gamemodes.length > 0
+    && value.mapLists && typeof value.mapLists === 'object'
+    && Object.entries(value.mapLists).every(([name, maps]) => name.trim() && Array.isArray(maps) && maps.length > 0)
+    && value.assignments && typeof value.assignments === 'object';
 }
 
-function allGamemodes() {
-  return [...settings.arenaGamemodes, settings.takedownGamemode];
+function migrateOldSettings(value) {
+  if (!value?.arenaGamemodes || !value?.arenaMaps || !value?.simulationMaps) return null;
+  const gamemodes = [...value.arenaGamemodes, value.takedownGamemode];
+  return {
+    gamemodes,
+    mapLists: { 'Arena maps': value.arenaMaps, 'Simulation maps': value.simulationMaps },
+    assignments: Object.fromEntries(gamemodes.map((mode) => [
+      mode, mode === value.takedownGamemode ? 'Simulation maps' : 'Arena maps',
+    ])),
+  };
 }
 
-// Keep enough recent choices that at least 50% of the other choices must occur first.
+function loadSettings() {
+  try {
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (isValidSettings(current)) return current;
+    const oldSettings = migrateOldSettings(JSON.parse(localStorage.getItem('spingate-settings')));
+    if (isValidSettings(oldSettings)) return oldSettings;
+  } catch {
+    // Defaults below keep a malformed browser value from breaking the page.
+  }
+  return cloneDefaults();
+}
+
+function saveSettings(message) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  resetHistories();
+  renderSettings();
+  statusOutput.textContent = `${message} Rotation history reset.`;
+}
+
+function resetHistories() {
+  gamemodeHistory = [];
+  mapHistories = {};
+}
+
 function historyLimit(pool) {
   return Math.ceil((pool.length - 1) / 2);
 }
@@ -61,70 +98,131 @@ function historyLimit(pool) {
 function drawWithoutRecentRepeat(pool, history) {
   const eligible = pool.filter((item) => !history.includes(item));
   const selection = eligible[Math.floor(Math.random() * eligible.length)];
-  const nextHistory = [...history, selection].slice(-historyLimit(pool));
-  return { selection, nextHistory };
+  return {
+    selection,
+    nextHistory: [...history, selection].slice(-historyLimit(pool)),
+  };
+}
+
+function configuredGamemodes() {
+  return settings.gamemodes.filter((mode) => {
+    const mapList = settings.mapLists[settings.assignments[mode]];
+    return Array.isArray(mapList) && mapList.length > 0;
+  });
 }
 
 function spin() {
-  const gamemodeResult = drawWithoutRecentRepeat(allGamemodes(), gamemodeHistory);
-  const isTakedown = gamemodeResult.selection === settings.takedownGamemode;
-  const maps = isTakedown ? settings.simulationMaps : settings.arenaMaps;
-  const history = isTakedown ? simulationMapHistory : arenaMapHistory;
-  const mapResult = drawWithoutRecentRepeat(maps, history);
-
-  gamemodeHistory = gamemodeResult.nextHistory;
-  if (isTakedown) simulationMapHistory = mapResult.nextHistory;
-  else arenaMapHistory = mapResult.nextHistory;
-
-  gamemodeOutput.textContent = gamemodeResult.selection;
-  mapOutput.textContent = mapResult.selection;
-  statusOutput.textContent = 'Spin again for another matchup.';
-}
-
-function textToList(value) {
-  return [...new Set(value.split('\n').map((item) => item.trim()).filter(Boolean))];
-}
-
-function populateForm() {
-  form.elements['arena-gamemodes'].value = settings.arenaGamemodes.join('\n');
-  form.elements['takedown-gamemode'].value = settings.takedownGamemode;
-  form.elements['arena-maps'].value = settings.arenaMaps.join('\n');
-  form.elements['simulation-maps'].value = settings.simulationMaps.join('\n');
-}
-
-function resetHistories() {
-  gamemodeHistory = [];
-  arenaMapHistory = [];
-  simulationMapHistory = [];
-}
-
-form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const nextSettings = {
-    arenaGamemodes: textToList(form.elements['arena-gamemodes'].value),
-    takedownGamemode: form.elements['takedown-gamemode'].value.trim(),
-    arenaMaps: textToList(form.elements['arena-maps'].value),
-    simulationMaps: textToList(form.elements['simulation-maps'].value),
-  };
-
-  if (!isValidSettings(nextSettings)) {
-    statusOutput.textContent = 'Each list needs at least one entry.';
+  const gamemodes = configuredGamemodes();
+  if (!gamemodes.length) {
+    statusOutput.textContent = 'Add at least one gamemode-to-map-list link before spinning.';
     return;
   }
 
-  settings = nextSettings;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  resetHistories();
-  statusOutput.textContent = 'Settings saved. The rotation history has been reset.';
+  const gamemodeResult = drawWithoutRecentRepeat(gamemodes, gamemodeHistory);
+  const gamemode = gamemodeResult.selection;
+  const mapListName = settings.assignments[gamemode];
+  const maps = settings.mapLists[mapListName];
+  const mapResult = drawWithoutRecentRepeat(maps, mapHistories[mapListName] ?? []);
+
+  gamemodeHistory = gamemodeResult.nextHistory;
+  mapHistories[mapListName] = mapResult.nextHistory;
+  gamemodeOutput.textContent = gamemode;
+  mapOutput.textContent = mapResult.selection;
+  statusOutput.textContent = `Using ${mapListName}. Spin again for another matchup.`;
+}
+
+function addOptions(select, options) {
+  select.replaceChildren(...options.map((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    return option;
+  }));
+}
+
+function renderMapLists() {
+  mapListSummary.replaceChildren(...Object.entries(settings.mapLists).map(([name, maps]) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${name} (${maps.length} maps)`;
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', () => {
+      mapListNameInput.value = name;
+      mapListMapsInput.value = maps.join('\n');
+      mapListNameInput.focus();
+    });
+    item.append(label, edit);
+    return item;
+  }));
+}
+
+function renderAssignments() {
+  assignmentSummary.replaceChildren(...settings.gamemodes.map((mode) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${mode} → ${settings.assignments[mode] ?? 'No map list assigned'}`;
+    item.append(label);
+    return item;
+  }));
+}
+
+function renderSettings() {
+  gamemodesInput.value = settings.gamemodes.join('\n');
+  const mapListNames = Object.keys(settings.mapLists);
+  addOptions(assignmentGamemode, settings.gamemodes);
+  addOptions(assignmentMapList, mapListNames);
+  renderMapLists();
+  renderAssignments();
+}
+
+document.querySelector('#save-gamemodes').addEventListener('click', () => {
+  const gamemodes = textToList(gamemodesInput.value);
+  if (!gamemodes.length) {
+    statusOutput.textContent = 'Add at least one gamemode.';
+    return;
+  }
+  settings.gamemodes = gamemodes;
+  settings.assignments = Object.fromEntries(gamemodes.map((mode) => [mode, settings.assignments[mode]]));
+  saveSettings('Gamemodes saved.');
+});
+
+document.querySelector('#save-map-list').addEventListener('click', () => {
+  const name = mapListNameInput.value.trim();
+  const maps = textToList(mapListMapsInput.value);
+  if (!name || !maps.length) {
+    statusOutput.textContent = 'A map list needs a name and at least one map.';
+    return;
+  }
+  settings.mapLists[name] = maps;
+  saveSettings(`Map list “${name}” saved.`);
+});
+
+document.querySelector('#clear-map-list').addEventListener('click', () => {
+  mapListNameInput.value = '';
+  mapListMapsInput.value = '';
+  mapListNameInput.focus();
+});
+
+document.querySelector('#save-assignment').addEventListener('click', () => {
+  const mode = assignmentGamemode.value;
+  const mapList = assignmentMapList.value;
+  if (!mode || !mapList) {
+    statusOutput.textContent = 'Create a gamemode and a map list before linking them.';
+    return;
+  }
+  settings.assignments[mode] = mapList;
+  saveSettings(`${mode} linked to ${mapList}.`);
 });
 
 document.querySelector('#restore-defaults').addEventListener('click', () => {
   settings = cloneDefaults();
   localStorage.removeItem(STORAGE_KEY);
   resetHistories();
-  populateForm();
-  statusOutput.textContent = 'Default settings restored. The rotation history has been reset.';
+  renderSettings();
+  statusOutput.textContent = 'Default settings restored. Rotation history reset.';
 });
 
-populateForm();
-spinButton.addEventListener('click', spin);
+renderSettings();
+document.querySelector('#spin').addEventListener('click', spin);
