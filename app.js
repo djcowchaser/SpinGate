@@ -18,9 +18,10 @@ const DEFAULT_SETTINGS = {
       'Forest of Fades', 'Halls of Torment', 'Arena of the dammed',
       'Planetary Fortress', 'Template of Abaddon',
     ],
+    'Big Head Snipers maps': ['!Jump Party Sick'],
   },
   assignments: {
-    'Big Head Snipers': ['Arena maps', 'ICESmoke maps'], Domination: ['Arena maps'],
+    'Big Head Snipers': ['Arena maps', 'ICESmoke maps', 'Big Head Snipers maps'], Domination: ['Arena maps'],
     'FFA OITC': ['Arena maps', 'ICESmoke maps'], 'Gun Game': ['Arena maps', 'ICESmoke maps'],
     'King of the Hill': ['Arena maps'], 'Team Deathmatch': ['Arena maps'],
     Swat: ['Arena maps'], Takedown: ['Simulation maps'],
@@ -75,6 +76,13 @@ function addIceSmokeDefaults(value) {
     if (value.gamemodes.includes(mode)) {
       value.assignments[mode] = [...new Set([...(value.assignments[mode] ?? []), mapListName])];
     }
+  }
+  const bigHeadList = 'Big Head Snipers maps';
+  if (!value.mapLists[bigHeadList]) value.mapLists[bigHeadList] = cloneDefaults().mapLists[bigHeadList];
+  if (value.gamemodes.includes('Big Head Snipers')) {
+    value.assignments['Big Head Snipers'] = [
+      ...new Set([...(value.assignments['Big Head Snipers'] ?? []), bigHeadList]),
+    ];
   }
   return value;
 }
