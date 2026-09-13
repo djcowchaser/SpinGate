@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpinGate</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <p class="eyebrow">Splitgate quick play</p>
+      <h1>SpinGate</h1>
+      <p class="intro">Spin a game mode and a compatible map. Each option appears once before its pool resets.</p>
+      <section class="result" aria-live="polite" aria-atomic="true">
+        <div><p class="label">Gamemode</p><p id="gamemode" class="value">Ready to spin</p></div>
+        <div><p class="label">Map</p><p id="map" class="value">—</p></div>
+      </section>
+      <button id="spin" type="button">Spin</button>
+      <p id="status" class="status">Choose Spin to get started.</p>
+
+      <details class="settings">
+        <summary>Configure game modes and maps</summary>
+        <form id="settings-form">
+          <p class="settings-note">Enter one value per line. Settings are saved only in this browser.</p>
+          <label for="arena-gamemodes">Arena gamemodes</label>
+          <textarea id="arena-gamemodes" rows="7" required></textarea>
+          <label for="takedown-gamemode">Simulation gamemode</label>
+          <input id="takedown-gamemode" required />
+          <label for="arena-maps">Arena maps</label>
+          <textarea id="arena-maps" rows="8" required></textarea>
+          <label for="simulation-maps">Simulation maps</label>
+          <textarea id="simulation-maps" rows="6" required></textarea>
+          <div class="settings-actions">
+            <button type="submit">Save settings</button>
+            <button id="restore-defaults" type="button" class="secondary">Restore defaults</button>
+          </div>
+        </form>
+      </details>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

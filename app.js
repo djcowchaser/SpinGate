@@ -1,128 +1,130 @@
-import readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process'; 
+const DEFAULT_SETTINGS = {
+  arenaGamemodes: [
+    'Big Head Snipers', 'Domination', 'FFA OITC', 'Gun Game',
+    'King of the Hill', 'Team Deathmatch', 'Swat',
+  ],
+  takedownGamemode: 'Takedown',
+  arenaMaps: [
+    'Abyss', 'Academy', 'Bypass', 'Containment', 'Core', 'Eden',
+    'Foregone Destruction', 'Frontier', 'Grit', 'Hammerhead',
+    'Karman Station', 'Oasis', 'Ozone', 'Runway', 'Stadium V2',
+    'Terra 13', 'Trihard', 'Zenith',
+  ],
+  simulationMaps: [
+    'Simulation Anomaly', 'Simulation Charlie', 'Simulation Divide',
+    'Simulation Faceoff', 'Simulation Hectic', 'Simulation Moshpit',
+  ],
+};
 
-const ARENA_MAPS = [
-	'Abyss',
-	'Academy',
-	'Bypass',
-	'Containment',
-	'Core',
-	'Eden',
-	'Foregone Destruction',
-	'Frontier',
-	'Grit',
-	'Hammerhead',
-	'Karman Station',
-	'Oasis',
-	'Ozone',
-	'Runway',
-	'Stadium V2',
-	'Terra 13',
-	'Trihard',
-	'Zenith',
-];
+const STORAGE_KEY = 'spingate-settings';
+const form = document.querySelector('#settings-form');
+const spinButton = document.querySelector('#spin');
+const gamemodeOutput = document.querySelector('#gamemode');
+const mapOutput = document.querySelector('#map');
+const statusOutput = document.querySelector('#status');
 
-const SIMULATION_MAPS = [
-	'Simulation Anomaly',
-	'Simulation Charie',
-	'Simulation Divide',
-	'Simulation Faceoff',
-	'Simulation Hectic',
-	'Simulation Moshpit',
-];
+let settings = loadSettings();
+let gamemodeHistory = [];
+let arenaMapHistory = [];
+let simulationMapHistory = [];
 
-const ARENA_ROYALE_MAPS = [
-	'Drought',
-	'Fracture',
-	'Glacier',
-	'Inferno',
-	'Outskirts',
-	'Sanctum',
-];
-
-const QUICK_PLAY_MAPS = [
-	...ARENA_MAPS,
-	...SIMULATION_MAPS,
-];
-
-const ARENA_ROYAL_GAMEMODE = 'Arena Royale';
-
-const ARENA_GAMEMODES = [
-	'Big Head Snipers',
-	'Domination',
-	'FFA OITC',
-	'Gun Game',
-	'King of the Hill',
-	'Team Deathmatch',
-	'Swat',
-];
-
-const TAKEDOWN_GAMEMODE = 'Takedown';
-
-const PARTY_GAMEMODES = [
-	'FFA Fiesta',
-	'Firecracker',
-	'Splitball',
-	'Speed Bats',
-	'Shotty Snipers',
-	'Teabag Confirmed',
-];
-
-const OTHER_GAMEMODES = [
-	'Hotzone',
-	'Shotty Snipers',
-];
-
-const QUICK_PLAY_GAMEMODES = [
-	...ARENA_GAMEMODES,
-	TAKEDOWN_GAMEMODE,
-]
-
-async function main() {
-	console.log('--- Starting ---\n');
-
-	console.log('Gamemodes and maps will appear. Press "0" any time to stop the program.\n')
-
-	const rl = readline.createInterface({ input, output });
-	let gamemodes = [...QUICK_PLAY_GAMEMODES];
-	let arenaMaps = [...ARENA_MAPS];
-	let simulationMaps = [...SIMULATION_MAPS];
-
-	let shouldContinue = true;
-	while (shouldContinue) {
-		const {gamemode, map} = getNextGamemodeAndMap({gamemodes, arenaMaps, simulationMaps});
-		const response = await rl.question(`Gamemode: ${gamemode}\nMap: ${map}\n`);
-		if (response === '0') {
-			shouldContinue = false;
-		}
-
-		gamemodes = gamemodes.length === 1 ? gamemodes = [...QUICK_PLAY_GAMEMODES] : gamemodes.filter(curr => curr !== gamemode);
-		if (gamemode === TAKEDOWN_GAMEMODE) {
-			simulationMaps = simulationMaps.length === 1 ? simulationMaps = [...SIMULATION_MAPS] :simulationMaps.filter(curr => curr !== map);
-		} else {
-			arenaMaps = arenaMaps.length === 1 ? arenaMaps = [...ARENA_MAPS] : arenaMaps.filter(curr => curr !== map);
-		}
-	}
-
-	rl.close();
-
-	console.log('\n--- Done ---');
+function cloneDefaults() {
+  return structuredClone(DEFAULT_SETTINGS);
 }
 
-function getNextGamemodeAndMap({gamemodes, arenaMaps, simulationMaps}) {
-	const gamemode = gamemodes[Math.floor(Math.random() * gamemodes.length)];
-
-	let map;
-	if (gamemode === TAKEDOWN_GAMEMODE) {
-		map = simulationMaps[Math.floor(Math.random() * simulationMaps.length)];
-	} else {
-		map = arenaMaps[Math.floor(Math.random() * arenaMaps.length)];
-	}
-
-	return {
-		gamemode,
-		map,
-	}
+function loadSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return isValidSettings(stored) ? stored : cloneDefaults();
+  } catch {
+    return cloneDefaults();
+  }
 }
 
-main();
+function isValidSettings(value) {
+  return value
+    && Array.isArray(value.arenaGamemodes) && value.arenaGamemodes.length > 0
+    && typeof value.takedownGamemode === 'string' && value.takedownGamemode.trim()
+    && Array.isArray(value.arenaMaps) && value.arenaMaps.length > 0
+    && Array.isArray(value.simulationMaps) && value.simulationMaps.length > 0;
+}
+
+function allGamemodes() {
+  return [...settings.arenaGamemodes, settings.takedownGamemode];
+}
+
+// Keep enough recent choices that at least 50% of the other choices must occur first.
+function historyLimit(pool) {
+  return Math.ceil((pool.length - 1) / 2);
+}
+
+function drawWithoutRecentRepeat(pool, history) {
+  const eligible = pool.filter((item) => !history.includes(item));
+  const selection = eligible[Math.floor(Math.random() * eligible.length)];
+  const nextHistory = [...history, selection].slice(-historyLimit(pool));
+  return { selection, nextHistory };
+}
+
+function spin() {
+  const gamemodeResult = drawWithoutRecentRepeat(allGamemodes(), gamemodeHistory);
+  const isTakedown = gamemodeResult.selection === settings.takedownGamemode;
+  const maps = isTakedown ? settings.simulationMaps : settings.arenaMaps;
+  const history = isTakedown ? simulationMapHistory : arenaMapHistory;
+  const mapResult = drawWithoutRecentRepeat(maps, history);
+
+  gamemodeHistory = gamemodeResult.nextHistory;
+  if (isTakedown) simulationMapHistory = mapResult.nextHistory;
+  else arenaMapHistory = mapResult.nextHistory;
+
+  gamemodeOutput.textContent = gamemodeResult.selection;
+  mapOutput.textContent = mapResult.selection;
+  statusOutput.textContent = 'Spin again for another matchup.';
+}
+
+function textToList(value) {
+  return [...new Set(value.split('\n').map((item) => item.trim()).filter(Boolean))];
+}
+
+function populateForm() {
+  form.elements['arena-gamemodes'].value = settings.arenaGamemodes.join('\n');
+  form.elements['takedown-gamemode'].value = settings.takedownGamemode;
+  form.elements['arena-maps'].value = settings.arenaMaps.join('\n');
+  form.elements['simulation-maps'].value = settings.simulationMaps.join('\n');
+}
+
+function resetHistories() {
+  gamemodeHistory = [];
+  arenaMapHistory = [];
+  simulationMapHistory = [];
+}
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const nextSettings = {
+    arenaGamemodes: textToList(form.elements['arena-gamemodes'].value),
+    takedownGamemode: form.elements['takedown-gamemode'].value.trim(),
+    arenaMaps: textToList(form.elements['arena-maps'].value),
+    simulationMaps: textToList(form.elements['simulation-maps'].value),
+  };
+
+  if (!isValidSettings(nextSettings)) {
+    statusOutput.textContent = 'Each list needs at least one entry.';
+    return;
+  }
+
+  settings = nextSettings;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  resetHistories();
+  statusOutput.textContent = 'Settings saved. The rotation history has been reset.';
+});
+
+document.querySelector('#restore-defaults').addEventListener('click', () => {
+  settings = cloneDefaults();
+  localStorage.removeItem(STORAGE_KEY);
+  resetHistories();
+  populateForm();
+  statusOutput.textContent = 'Default settings restored. The rotation history has been reset.';
+});
+
+populateForm();
+spinButton.addEventListener('click', spin);
