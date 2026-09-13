@@ -41,7 +41,8 @@ const assignmentSummary = document.querySelector('#assignment-summary');
 
 let settings = loadSettings();
 let gamemodeHistory = [];
-let mapHistories = {};
+let mapTurn = 0;
+let mapLastSeenTurn = {};
 
 function cloneDefaults() {
   return structuredClone(DEFAULT_SETTINGS);
@@ -114,7 +115,8 @@ function saveSettings(message) {
 
 function resetHistories() {
   gamemodeHistory = [];
-  mapHistories = {};
+  mapTurn = 0;
+  mapLastSeenTurn = {};
 }
 
 function historyLimit(pool) {
@@ -128,6 +130,15 @@ function drawWithoutRecentRepeat(pool, history) {
     selection,
     nextHistory: [...history, selection].slice(-historyLimit(pool)),
   };
+}
+
+function drawMapWithGlobalCooldown(pool) {
+  mapTurn += 1;
+  const cooldown = historyLimit(pool);
+  const eligible = pool.filter((map) => mapTurn - (mapLastSeenTurn[map] ?? -Infinity) > cooldown);
+  const selection = eligible[Math.floor(Math.random() * eligible.length)];
+  mapLastSeenTurn[selection] = mapTurn;
+  return selection;
 }
 
 function configuredGamemodes() {
@@ -151,12 +162,11 @@ function spin() {
   const gamemode = gamemodeResult.selection;
   const mapListNames = settings.assignments[gamemode];
   const maps = mapsForGamemode(gamemode);
-  const mapResult = drawWithoutRecentRepeat(maps, mapHistories[gamemode] ?? []);
+  const map = drawMapWithGlobalCooldown(maps);
 
   gamemodeHistory = gamemodeResult.nextHistory;
-  mapHistories[gamemode] = mapResult.nextHistory;
   gamemodeOutput.textContent = gamemode;
-  mapOutput.textContent = mapResult.selection;
+  mapOutput.textContent = map;
   statusOutput.textContent = `Using ${mapListNames.join(' + ')}. Spin again for another matchup.`;
 }
 
